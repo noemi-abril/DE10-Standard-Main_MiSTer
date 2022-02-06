@@ -70,9 +70,6 @@
     <ClCompile Include="hardware.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ini_parser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="input.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -142,12 +139,6 @@
     <ClCompile Include="support\archie\archie.cpp">
       <Filter>Source Files\support</Filter>
     </ClCompile>
-    <ClCompile Include="support\megacd\cdd.cpp">
-      <Filter>Source Files\support</Filter>
-    </ClCompile>
-    <ClCompile Include="support\neogeo\loader.cpp">
-      <Filter>Source Files\support</Filter>
-    </ClCompile>
     <ClCompile Include="support\megacd\megacd.cpp">
       <Filter>Source Files\support</Filter>
     </ClCompile>
@@ -169,9 +160,6 @@
     <ClCompile Include="support\snes\snes.cpp">
       <Filter>Source Files\support</Filter>
     </ClCompile>
-    <ClCompile Include="support\st\st_ikbd.cpp">
-      <Filter>Source Files\support</Filter>
-    </ClCompile>
     <ClCompile Include="support\st\st_tos.cpp">
       <Filter>Source Files\support</Filter>
     </ClCompile>
@@ -181,13 +169,52 @@
     <ClCompile Include="support\arcade\buffer.cpp">
       <Filter>Source Files\support</Filter>
     </ClCompile>
-    <ClCompile Include="support\arcade\romutils.cpp">
-      <Filter>Source Files\support</Filter>
-    </ClCompile>
     <ClCompile Include="recent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="support\c64\c64.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\pcecd\pcecd.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\pcecd\pcecdd.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\megacd\megacdd.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\neogeo\neogeo_loader.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\arcade\mra_loader.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\pcecd\seektime.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="audio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="support\minimig\minimig_share.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\x86\x86_share.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="shmem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ide.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ide_cdrom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="support\chd\mister_chd.cpp">
+      <Filter>Source Files\support</Filter>
+    </ClCompile>
+    <ClCompile Include="support\psx\psx.cpp">
       <Filter>Source Files\support</Filter>
     </ClCompile>
   </ItemGroup>
@@ -232,9 +259,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="hardware.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ini_parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="input.h">
@@ -306,12 +330,6 @@
     <ClInclude Include="lib\imlib2\Imlib2.h">
       <Filter>Header Files\imlib</Filter>
     </ClInclude>
-    <ClInclude Include="support\neogeo\loader.h">
-      <Filter>Header Files\support</Filter>
-    </ClInclude>
-    <ClInclude Include="support\st\st_ikbd.h">
-      <Filter>Header Files\support</Filter>
-    </ClInclude>
     <ClInclude Include="support\st\st_tos.h">
       <Filter>Header Files\support</Filter>
     </ClInclude>
@@ -333,9 +351,6 @@
     <ClInclude Include="support\minimig\minimig_hdd.h">
       <Filter>Header Files\support</Filter>
     </ClInclude>
-    <ClInclude Include="support\minimig\minimig_hdd_internal.h">
-      <Filter>Header Files\support</Filter>
-    </ClInclude>
     <ClInclude Include="support\x86\x86.h">
       <Filter>Header Files\support</Filter>
     </ClInclude>
@@ -348,9 +363,6 @@
     <ClInclude Include="support\megacd\megacd.h">
       <Filter>Header Files\support</Filter>
     </ClInclude>
-    <ClInclude Include="support\arcade\romutils.h">
-      <Filter>Header Files\support</Filter>
-    </ClInclude>
     <ClInclude Include="support\arcade\buffer.h">
       <Filter>Header Files\support</Filter>
     </ClInclude>
@@ -358,6 +370,45 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="support\c64\c64.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="cd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="support\pcecd\pcecd.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="support\neogeo\neogeo_loader.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="support\arcade\mra_loader.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="audio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="support\minimig\minimig_share.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="support\minimig\miminig_fs_messages.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="support\x86\x86_share.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="shmem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ide.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ide_cdrom.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="support\chd\mister_chd.h">
+      <Filter>Header Files\support</Filter>
+    </ClInclude>
+    <ClInclude Include="support\psx\psx.h">
       <Filter>Header Files\support</Filter>
     </ClInclude>
   </ItemGroup>

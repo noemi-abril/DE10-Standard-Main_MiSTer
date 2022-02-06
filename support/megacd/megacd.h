@@ -35,31 +35,8 @@
 #define CD_COMM_TRAY_CLOSE		0x0C
 #define CD_COMM_TRAY_OPEN		0x0D
 
-typedef struct
-{
-	fileTYPE f;
-	int offset;
-	int start;
-	int end;
-	int type;
-} track_t;
-
-typedef struct
-{
-	int end;
-	int last;
-	track_t tracks[100];
-//	fileTYPE sub;
-} toc_t;
-
-typedef struct
-{
-	uint8_t m;
-	uint8_t s;
-	uint8_t f;
-} msf_t;
-
-typedef int (*SendDataFunc) (uint8_t* buf, int len, uint8_t index);
+#include "../../cd.h"
+#include <libchdr/chd.h>
 
 class cdd_t
 {
@@ -87,11 +64,14 @@ private:
 	int scanOffset;
 	int audioLength;
 	int audioOffset;
-
+	int chd_hunknum;
+	uint8_t *chd_hunkbuf;
+	int chd_audio_read_lba;
 	uint8_t stat[10];
 	uint8_t comm[10];
 
 	int LoadCUE(const char* filename);
+	int LoadCHD(const char* filename);
 	int SectorSend(uint8_t* header);
 	int SubcodeSend();
 	void ReadData(uint8_t *buf);

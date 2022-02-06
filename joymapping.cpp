@@ -28,6 +28,9 @@ static void trim(char * s)
 	memmove(s, p, l + 1);
 }
 
+static char joy_names[NUMBUTTONS][32];
+static int joy_count = 0;
+
 static char joy_nnames[NUMBUTTONS][32];
 static char joy_pnames[NUMBUTTONS][32];
 static int defaults = 0;
@@ -36,10 +39,10 @@ static void read_buttons()
 {
 	char *p;
 
-	memset(joy_bnames, 0, sizeof(joy_bnames));
+	memset(joy_names, 0, sizeof(joy_names));
 	memset(joy_nnames, 0, sizeof(joy_nnames));
 	memset(joy_pnames, 0, sizeof(joy_pnames));
-	joy_bcount = 0;
+	joy_count = 0;
 	defaults = 0;
 
 	user_io_read_confstr();
@@ -50,18 +53,18 @@ static void read_buttons()
 	{
 		for (int n = 0; n < NUMBUTTONS - DPAD_COUNT; n++)
 		{
-			substrcpy(joy_bnames[n], p, n);
-			if (!joy_bnames[n][0]) break;
+			substrcpy(joy_names[n], p, n);
+			if (!joy_names[n][0]) break;
 
-			printf("joy_bname[%d] = %s\n", n, joy_bnames[n]);
+			printf("joy_name[%d] = %s\n", n, joy_names[n]);
 
-			memcpy(joy_nnames[n], joy_bnames[n], sizeof(joy_nnames[0]));
+			memcpy(joy_nnames[n], joy_names[n], sizeof(joy_nnames[0]));
 			char *sstr = strchr(joy_nnames[n], '(');
 			if (sstr) *sstr = 0;
 			trim(joy_nnames[n]);
 
 			if (!joy_nnames[n][0]) break;
-			joy_bcount++;
+			joy_count++;
 		}
 		printf("\n");
 	}
@@ -74,7 +77,7 @@ static void read_buttons()
 	if (p)
 	{
 		memset(joy_nnames, 0, sizeof(joy_nnames));
-		for (int n = 0; n < joy_bcount; n++)
+		for (int n = 0; n < joy_count; n++)
 		{
 			substrcpy(joy_nnames[n], p, n);
 			trim(joy_nnames[n]);
@@ -88,7 +91,7 @@ static void read_buttons()
 	if (p)
 	{
 		defaults = cfg.gamepad_defaults;
-		for (int n = 0; n < joy_bcount; n++)
+		for (int n = 0; n < joy_count; n++)
 		{
 			substrcpy(joy_pnames[n], p, n);
 			trim(joy_pnames[n]);
@@ -96,15 +99,6 @@ static void read_buttons()
 		}
 		printf("\n");
 	}
-}
-
-static int has_X_button()
-{
-	for (int i = 0; i < joy_bcount; i++)
-	{
-		if (!strcasecmp(joy_nnames[i], "X")) return 1;
-	}
-	return 0;
 }
 
 static int is_fire(char* name)
@@ -122,7 +116,6 @@ static int is_fire(char* name)
 
 void map_joystick(uint32_t *map, uint32_t *mmap)
 {
-	static char mapinfo[1024];
 	/*
 	attemps to centrally defined core joy mapping to the joystick declaredy by a core config string
 	we use the names declared by core with some special handling for specific edge cases
@@ -131,21 +124,20 @@ void map_joystick(uint32_t *map, uint32_t *mmap)
 		A, B, X, Y, L, R, Select, Start
 	*/
 	read_buttons();
-	sprintf(mapinfo, "Default (%s) map:", defaults ? "pos" : "name");
 
 	map[SYS_BTN_RIGHT] = mmap[SYS_BTN_RIGHT] & 0xFFFF;
 	map[SYS_BTN_LEFT]  = mmap[SYS_BTN_LEFT]  & 0xFFFF;
 	map[SYS_BTN_DOWN]  = mmap[SYS_BTN_DOWN]  & 0xFFFF;
 	map[SYS_BTN_UP]    = mmap[SYS_BTN_UP]    & 0xFFFF;
 
-	if (mmap[SYS_AXIS_X])
+	if (mmap[SYS_AXIS_X] && !is_psx())
 	{
 		uint32_t key = KEY_EMU + (((uint16_t)mmap[SYS_AXIS_X]) << 1);
 		map[SYS_BTN_LEFT] = (key << 16) | map[SYS_BTN_LEFT];
 		map[SYS_BTN_RIGHT] = ((key+1) << 16) | map[SYS_BTN_RIGHT];
 	}
 
-	if (mmap[SYS_AXIS_Y])
+	if (mmap[SYS_AXIS_Y] && !is_psx())
 	{
 		uint32_t key = KEY_EMU + (((uint16_t)mmap[SYS_AXIS_Y]) << 1);
 		map[SYS_BTN_UP] = (key << 16) | map[SYS_BTN_UP];
@@ -153,68 +145,56 @@ void map_joystick(uint32_t *map, uint32_t *mmap)
 	}
 
 	// loop through core requested buttons and construct result map
-	for (int i=0, n=0; i<joy_bcount; i++)
+	for (int i=0, n=0; i<joy_count; i++)
 	{
-		if (!strcmp(joy_bnames[i], "-")) continue;
+		if (!strcmp(joy_names[i], "-")) continue;
 
 		int idx = i+DPAD_COUNT;
-		char *btn_name = defaults ? joy_pnames[n] : joy_nnames[n];
+		char btn_name[32];
+		strcpy(btn_name, defaults ? joy_pnames[n] : joy_nnames[n]);
 
-		int mapped = 1;
+		char *p = strchr(btn_name, '|');
+		if (p) *p = 0;
 
 		if(!strcasecmp(btn_name, "A")
 		|| !strcasecmp(btn_name, "Jump")
-		|| is_fire(btn_name) == 1
-		|| !strcasecmp(btn_name, "Button I"))
+		|| is_fire(btn_name) == 1)
 		{
 			map[idx] = mmap[SYS_BTN_A];
-			strcat(mapinfo, "\n[A]");
 		}
 
 		else if(!strcasecmp(btn_name, "B")
-		|| is_fire(btn_name) == 2
-		|| !strcasecmp(btn_name, "Button II"))
+		|| is_fire(btn_name) == 2)
 		{
 			map[idx] = mmap[SYS_BTN_B];
-			strcat(mapinfo, "\n[B]");
 		}
 
 		else if(!strcasecmp(btn_name, "X")
-		|| (!strcasecmp(btn_name, "C") && !has_X_button())
-		|| is_fire(btn_name) == 3
-		|| !strcasecmp(btn_name, "Button III"))
+		|| !strcasecmp(btn_name, "C")
+		|| is_fire(btn_name) == 3)
 		{
 			map[idx] = mmap[SYS_BTN_X];
-			strcat(mapinfo, "\n[X]");
 		}
 
 		else if(!strcasecmp(btn_name, "Y")
 		|| !strcasecmp(btn_name, "D")
-		|| is_fire(btn_name) == 4
-		|| !strcasecmp(btn_name, "Button IV"))
+		|| is_fire(btn_name) == 4)
 		{
 			map[idx] = mmap[SYS_BTN_Y];
-			strcat(mapinfo, "\n[Y]");
 		}
 
 		// Genesis C and Z  and TG16 V and VI
 		else if(!strcasecmp(btn_name, "R")
-		|| !strcasecmp(btn_name, "C")
 		|| !strcasecmp(btn_name, "RT")
-		|| !strcasecmp(btn_name, "Button V")
 		|| !strcasecmp(btn_name, "Coin"))
 		{
 			map[idx] = mmap[SYS_BTN_R];
-			strcat(mapinfo, "\n[R]");
 		}
 
 		else if(!strcasecmp(btn_name, "L")
-		|| !strcasecmp(btn_name, "Z")
-		|| !strcasecmp(btn_name, "LT")
-		|| !strcasecmp(btn_name, "Button VI"))
+		|| !strcasecmp(btn_name, "LT"))
 		{
 			map[idx] = mmap[SYS_BTN_L];
-			strcat(mapinfo, "\n[L]");
 		}
 
 		else if(!strcasecmp(btn_name, "Select")
@@ -223,7 +203,6 @@ void map_joystick(uint32_t *map, uint32_t *mmap)
 		|| !strcasecmp(btn_name, "Start 2P"))
 		{
 			map[idx] = mmap[SYS_BTN_SELECT];
-			strcat(mapinfo, "\n[\x96]");
 		}
 
 		else if(!strcasecmp(btn_name, "Start")
@@ -232,53 +211,65 @@ void map_joystick(uint32_t *map, uint32_t *mmap)
 		|| !strcasecmp(btn_name, "Start 1P"))
 		{
 			map[idx] = mmap[SYS_BTN_START];
-			strcat(mapinfo, "\n[\x16]");
-		}
-
-		else mapped = 0;
-
-		if (map[idx] && mapped)
-		{
-			strcat(mapinfo, ": ");
-			strcat(mapinfo, joy_bnames[i]);
 		}
 
 		n++;
 	}
+}
 
-	Info(mapinfo, 6000);
+int map_paddle_btn()
+{
+	read_buttons();
+	for (int i = 0, n = 0; i < joy_count; i++)
+	{
+		if (!strcmp(joy_names[i], "-")) continue;
+		char *p = strchr(defaults ? joy_pnames[n] : joy_nnames[n], '|');
+		if (p && !strcasecmp(p, "|P")) return i + SYS_BTN_A;
+		n++;
+	}
+	return SYS_BTN_A;
 }
 
 static const char* get_std_name(uint16_t code, uint32_t *mmap)
 {
-	if (code == mmap[SYS_BTN_A     ]) return "[A]";
-	if (code == mmap[SYS_BTN_B     ]) return "[B]";
-	if (code == mmap[SYS_BTN_X     ]) return "[X]";
-	if (code == mmap[SYS_BTN_Y     ]) return "[Y]";
-	if (code == mmap[SYS_BTN_L     ]) return "[L]";
-	if (code == mmap[SYS_BTN_R     ]) return "[R]";
-	if (code == mmap[SYS_BTN_SELECT]) return "[\x96]";
-	if (code == mmap[SYS_BTN_START ]) return "[\x16]";
-
-	return "[ ]";
+	if (code)
+	{
+		if (code == mmap[SYS_BTN_A]) return "[A]";
+		if (code == mmap[SYS_BTN_B]) return "[B]";
+		if (code == mmap[SYS_BTN_X]) return "[X]";
+		if (code == mmap[SYS_BTN_Y]) return "[Y]";
+		if (code == mmap[SYS_BTN_L]) return "[L]";
+		if (code == mmap[SYS_BTN_R]) return "[R]";
+		if (code == mmap[SYS_BTN_SELECT]) return "[\x96]";
+		if (code == mmap[SYS_BTN_START]) return "[\x16]";
+		return "[ ]";
+	}
+	return NULL;
 }
 
-void map_joystick_show(uint32_t *map, uint32_t *mmap)
+void map_joystick_show(uint32_t *map, uint32_t *mmap, int num)
 {
 	static char mapinfo[1024];
 	read_buttons();
-	mapinfo[0] = 0;
+
+	sprintf(mapinfo, "Map (P%d):", num);
+	if (!num) sprintf(mapinfo, " Map:");
+	char *list = mapinfo + strlen(mapinfo);
 
 	// loop through core requested buttons and construct result map
-	for (int i = 0; i < joy_bcount; i++)
+	for (int i = 0; i < joy_count; i++)
 	{
-		if (!strcmp(joy_bnames[i], "-")) continue;
+		if (!strcmp(joy_names[i], "-")) continue;
 
-		if(mapinfo[0]) strcat(mapinfo, "\n");
-		strcat(mapinfo, get_std_name((uint16_t)(map[i + DPAD_COUNT]), mmap));
-		strcat(mapinfo, ": ");
-		strcat(mapinfo, joy_bnames[i]);
+		const char *btn = get_std_name((uint16_t)(map[i + DPAD_COUNT]), mmap);
+		if (btn)
+		{
+			strcat(mapinfo, "\n");
+			strcat(mapinfo, btn);
+			strcat(mapinfo, ": ");
+			strcat(mapinfo, joy_names[i]);
+		}
 	}
 
-	Info(mapinfo, 4000);
+	if(strlen(list) && cfg.controller_info) Info(mapinfo, cfg.controller_info * 1000);
 }

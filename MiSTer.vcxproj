@@ -26,11 +26,11 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <NMakeBuildCommandLine>git.lnk ./build.sh</NMakeBuildCommandLine>
+    <NMakeBuildCommandLine>%systemroot%\sysnative\windowspowershell\v1.0\powershell.exe wsl bash -lic ./build.sh</NMakeBuildCommandLine>
     <NMakeOutput>MiSTer</NMakeOutput>
-    <NMakeCleanCommandLine>git.lnk ./clean.sh</NMakeCleanCommandLine>
+    <NMakeCleanCommandLine>%systemroot%\sysnative\windowspowershell\v1.0\powershell.exe wsl bash -lic ./clean.sh</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>__arm__;__GNUC__;__USE_GNU ;_GNU_SOURCE;VDATE="000000";_FILE_OFFSET_BITS=64;_LARGEFILE64_SOURCE;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeIncludeSearchPath>c:\Work\Git\opt\gcc54\arm-linux-gnueabihf\libc\usr\include;c:\Work\Git\opt\gcc54\lib\gcc\arm-linux-gnueabihf\5.4.1\include;c:\Work\Git\opt\gcc54\arm-linux-gnueabihf\include\c++\5.4.1;$(NMakeIncludeSearchPath);lib\libco;lib\miniz;lib\lodepng</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>c:\Work\MiSTer\toolchain\gcc103\arm-none-linux-gnueabihf\libc\usr\include;c:\Work\MiSTer\toolchain\gcc103\lib\gcc\arm-none-linux-gnueabihf\10.3.1\include;c:\Work\MiSTer\toolchain\gcc103\arm-none-linux-gnueabihf\include\c++\10.3.1;c:\Work\MiSTer\toolchain\gcc103\arm-none-linux-gnueabihf\include\c++\10.3.1\arm-linux-gnueabihf;$(NMakeIncludeSearchPath);lib\libco;lib\miniz;lib\lodepng;lib\libchdr\include;lib\bluetooth</NMakeIncludeSearchPath>
     <OutDir>$(TEMP)</OutDir>
     <IntDir>$(TEMP)</IntDir>
     <AdditionalOptions>
@@ -48,6 +48,7 @@
     <None Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="audio.cpp" />
     <ClCompile Include="battery.cpp" />
     <ClCompile Include="bootcore.cpp" />
     <ClCompile Include="brightness.cpp" />
@@ -58,7 +59,8 @@
     <ClCompile Include="file_io.cpp" />
     <ClCompile Include="fpga_io.cpp" />
     <ClCompile Include="hardware.cpp" />
-    <ClCompile Include="ini_parser.cpp" />
+    <ClCompile Include="ide.cpp" />
+    <ClCompile Include="ide_cdrom.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="joymapping.cpp" />
     <ClCompile Include="lib\libco\arm.c" />
@@ -75,31 +77,40 @@
     <ClCompile Include="recent.cpp" />
     <ClCompile Include="scaler.cpp" />
     <ClCompile Include="scheduler.cpp" />
+    <ClCompile Include="shmem.cpp" />
     <ClCompile Include="spi.cpp" />
     <ClCompile Include="support\arcade\buffer.cpp" />
-    <ClCompile Include="support\arcade\romutils.cpp" />
+    <ClCompile Include="support\arcade\mra_loader.cpp" />
     <ClCompile Include="support\archie\archie.cpp" />
     <ClCompile Include="support\c64\c64.cpp" />
-    <ClCompile Include="support\megacd\cdd.cpp" />
+    <ClCompile Include="support\chd\mister_chd.cpp" />
     <ClCompile Include="support\megacd\megacd.cpp" />
+    <ClCompile Include="support\megacd\megacdd.cpp" />
     <ClCompile Include="support\minimig\minimig_boot.cpp" />
     <ClCompile Include="support\minimig\minimig_config.cpp" />
     <ClCompile Include="support\minimig\minimig_fdd.cpp" />
     <ClCompile Include="support\minimig\minimig_hdd.cpp" />
-    <ClCompile Include="support\neogeo\loader.cpp" />
+    <ClCompile Include="support\minimig\minimig_share.cpp" />
+    <ClCompile Include="support\neogeo\neogeo_loader.cpp" />
+    <ClCompile Include="support\pcecd\pcecd.cpp" />
+    <ClCompile Include="support\pcecd\pcecdd.cpp" />
+    <ClCompile Include="support\pcecd\seektime.cpp" />
+    <ClCompile Include="support\psx\psx.cpp" />
     <ClCompile Include="support\sharpmz\sharpmz.cpp" />
     <ClCompile Include="support\snes\snes.cpp" />
-    <ClCompile Include="support\st\st_ikbd.cpp" />
     <ClCompile Include="support\st\st_tos.cpp" />
     <ClCompile Include="support\x86\x86.cpp" />
+    <ClCompile Include="support\x86\x86_share.cpp" />
     <ClCompile Include="sxmlc.c" />
     <ClCompile Include="user_io.cpp" />
     <ClCompile Include="video.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="audio.h" />
     <ClInclude Include="battery.h" />
     <ClInclude Include="bootcore.h" />
     <ClInclude Include="brightness.h" />
+    <ClInclude Include="cd.h" />
     <ClInclude Include="cfg.h" />
     <ClInclude Include="charrom.h" />
     <ClInclude Include="cheats.h" />
@@ -113,7 +124,8 @@
     <ClInclude Include="fpga_reset_manager.h" />
     <ClInclude Include="fpga_system_manager.h" />
     <ClInclude Include="hardware.h" />
-    <ClInclude Include="ini_parser.h" />
+    <ClInclude Include="ide.h" />
+    <ClInclude Include="ide_cdrom.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="joymapping.h" />
     <ClInclude Include="lib\imlib2\Imlib2.h" />
@@ -132,24 +144,29 @@
     <ClInclude Include="recent.h" />
     <ClInclude Include="scaler.h" />
     <ClInclude Include="scheduler.h" />
+    <ClInclude Include="shmem.h" />
     <ClInclude Include="spi.h" />
     <ClInclude Include="support.h" />
     <ClInclude Include="support\arcade\buffer.h" />
-    <ClInclude Include="support\arcade\romutils.h" />
+    <ClInclude Include="support\arcade\mra_loader.h" />
     <ClInclude Include="support\archie\archie.h" />
     <ClInclude Include="support\c64\c64.h" />
+    <ClInclude Include="support\chd\mister_chd.h" />
     <ClInclude Include="support\megacd\megacd.h" />
+    <ClInclude Include="support\minimig\miminig_fs_messages.h" />
     <ClInclude Include="support\minimig\minimig_boot.h" />
     <ClInclude Include="support\minimig\minimig_config.h" />
     <ClInclude Include="support\minimig\minimig_fdd.h" />
     <ClInclude Include="support\minimig\minimig_hdd.h" />
-    <ClInclude Include="support\minimig\minimig_hdd_internal.h" />
-    <ClInclude Include="support\neogeo\loader.h" />
+    <ClInclude Include="support\minimig\minimig_share.h" />
+    <ClInclude Include="support\neogeo\neogeo_loader.h" />
+    <ClInclude Include="support\pcecd\pcecd.h" />
+    <ClInclude Include="support\psx\psx.h" />
     <ClInclude Include="support\sharpmz\sharpmz.h" />
     <ClInclude Include="support\snes\snes.h" />
-    <ClInclude Include="support\st\st_ikbd.h" />
     <ClInclude Include="support\st\st_tos.h" />
     <ClInclude Include="support\x86\x86.h" />
+    <ClInclude Include="support\x86\x86_share.h" />
     <ClInclude Include="sxmlc.h" />
     <ClInclude Include="user_io.h" />
     <ClInclude Include="video.h" />

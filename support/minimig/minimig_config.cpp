@@ -11,10 +11,13 @@
 #include "../../menu.h"
 #include "../../user_io.h"
 #include "../../input.h"
+#include "../../cfg.h"
+#include "../../ide.h"
 #include "minimig_boot.h"
 #include "minimig_fdd.h"
 #include "minimig_hdd.h"
 #include "minimig_config.h"
+#include "minimig_share.h"
 
 const char *config_memory_chip_msg[] = { "512K", "1M",   "1.5M", "2M" };
 const char *config_memory_slow_msg[] = { "none", "512K", "1M",   "1.5M" };
@@ -97,7 +100,7 @@ static char UploadKickstart(char *name)
 	int keysize = 0;
 
 	BootPrint("Checking for Amiga Forever key file:");
-	if (FileOpen(&file, user_io_make_filepath(HomeDir, "ROM.KEY")) || FileOpen(&file, "ROM.KEY")) {
+	if (FileOpen(&file, user_io_make_filepath(HomeDir(), "ROM.KEY")) || FileOpen(&file, "ROM.KEY")) {
 		keysize = file.size;
 		if (file.size<sizeof(romkey))
 		{
@@ -113,7 +116,15 @@ static char UploadKickstart(char *name)
 	BootPrint("Loading file: ");
 	BootPrint(name);
 
-	if (FileOpen(&file, name)) {
+	if (FileOpen(&file, name))
+	{
+		// discard from possible residents
+		EnableIO();
+		spi8(UIO_MM2_WR);
+		for (int i = 0; i < 8; i++) spi8(0);
+		for (int i = 0; i < 4; i++) spi8(1);
+		DisableIO();
+
 		if (file.size == 0x100000) {
 			// 1MB Kickstart ROM
 			BootPrint("Uploading 1MB Kickstart ...");
@@ -123,23 +134,23 @@ static char UploadKickstart(char *name)
 			return(1);
 		}
 		else if ((file.size == 8203) && keysize) {
-		        // Cloanto encrypted A1000 boot ROM
-		        BootPrint("Uploading encrypted A1000 boot ROM");
+			// Cloanto encrypted A1000 boot ROM
+			BootPrint("Uploading encrypted A1000 boot ROM");
 			SendFileV2(&file, romkey, keysize, 0xf80000, file.size >> 9);
 			FileClose(&file);
 			//clear tag (write 0 to $fc0000) to force bootrom to load Kickstart from disk
 			//and not use one which was already there.
-			spi_uio_cmd32le_cont(UIO_MM2_WR, 0xfc0000);
+			spi_uio_cmd32_cont(UIO_MM2_WR, 0xfc0000);
 			spi8(0x00);spi8(0x00);
 			DisableIO();
 			return(1);
 		  }
 		else if (file.size == 0x2000) {
-		        // 8KB A1000 boot ROM
-		        BootPrint("Uploading A1000 boot ROM");
-		        SendFileV2(&file, NULL, 0, 0xf80000, file.size >> 9);
+			// 8KB A1000 boot ROM
+			BootPrint("Uploading A1000 boot ROM");
+			SendFileV2(&file, NULL, 0, 0xf80000, file.size >> 9);
 			FileClose(&file);
-			spi_uio_cmd32le_cont(UIO_MM2_WR, 0xfc0000);
+			spi_uio_cmd32_cont(UIO_MM2_WR, 0xfc0000);
 			spi8(0x00);spi8(0x00);
 			DisableIO();
 			return(1);
@@ -198,14 +209,14 @@ static char UploadKickstart(char *name)
 static char UploadActionReplay()
 {
 	fileTYPE file = {};
-	if(FileOpen(&file, user_io_make_filepath(HomeDir, "HRTMON.ROM")) || FileOpen(&file, "HRTMON.ROM"))
+	if(FileOpen(&file, user_io_make_filepath(HomeDir(), "HRTMON.ROM")) || FileOpen(&file, "HRTMON.ROM"))
 	{
 		int adr, data;
 		puts("Uploading HRTmon ROM... ");
 		SendFileV2(&file, NULL, 0, 0xa10000, (file.size + 511) >> 9);
 		// HRTmon config
 		adr = 0xa10000 + 20;
-		spi_uio_cmd32le_cont(UIO_MM2_WR, adr);
+		spi_uio_cmd32_cont(UIO_MM2_WR, adr);
 		data = 0x00800000; // mon_size, 4 bytes
 		spi8((data >> 24) & 0xff); spi8((data >> 16) & 0xff);
 		spi8((data >> 8) & 0xff); spi8((data >> 0) & 0xff);
@@ -223,7 +234,7 @@ static char UploadActionReplay()
 		spi8((data >> 0) & 0xff);
 		data = 0xff; // key, 1 byte
 		spi8((data >> 0) & 0xff);
-		data = minimig_config.enable_ide ? 0xff : 0; // ide, 1 byte
+		data = (minimig_config.ide_cfg & 1) ? 0xff : 0; // ide, 1 byte
 		spi8((data >> 0) & 0xff);
 		data = 0xff; // a1200, 1 byte
 		spi8((data >> 0) & 0xff);
@@ -247,7 +258,7 @@ static char UploadActionReplay()
 		spi8((data >> 0) & 0xff);
 		DisableIO();
 		adr = 0xa10000 + 68;
-		spi_uio_cmd32le_cont(UIO_MM2_WR, adr);
+		spi_uio_cmd32_cont(UIO_MM2_WR, adr);
 		data = ((minimig_config.memory & 0x3) + 1) * 512 * 1024; // maxchip, 4 bytes TODO is this correct?
 		spi8((data >> 24) & 0xff); spi8((data >> 16) & 0xff);
 		spi8((data >> 8) & 0xff); spi8((data >> 0) & 0xff);
@@ -294,6 +305,13 @@ const char* minimig_get_cfg_info(int num, int label)
 	return "";
 }
 
+inline int hdd_open(int unit)
+{
+	return (ide_check() & 0x8000) ?
+		ide_open(unit, minimig_config.hardfile[unit].filename) :
+		OpenHardfile(unit, minimig_config.hardfile[unit].filename);
+}
+
 static int force_reload_kickstart = 0;
 static void ApplyConfiguration(char reloadkickstart)
 {
@@ -320,18 +338,30 @@ static void ApplyConfiguration(char reloadkickstart)
 
 	printf("\n");
 
-	printf("\nIDE state: %s.\n", minimig_config.enable_ide ? "enabled" : "disabled");
-	if (minimig_config.enable_ide)
+	printf("\nIDE state: %s.\n", (minimig_config.ide_cfg & 1) ? "enabled" : "disabled");
+	if (minimig_config.ide_cfg & 1)
 	{
-		printf("Primary Master HDD is %s.\n", minimig_config.hardfile[0].enabled ? "enabled" : "disabled");
-		printf("Primary Slave HDD is %s.\n", minimig_config.hardfile[1].enabled ? "enabled" : "disabled");
-		printf("Secondary Master HDD is %s.\n", minimig_config.hardfile[2].enabled ? "enabled" : "disabled");
-		printf("Secondary Slave HDD is %s.\n", minimig_config.hardfile[3].enabled ? "enabled" : "disabled");
+		printf("Primary Master HDD is %s.\n", (minimig_config.hardfile[0].cfg == 2) ? "CD" : minimig_config.hardfile[0].cfg ? "HDD" : "disabled");
+		printf("Primary Slave HDD is %s.\n", (minimig_config.hardfile[1].cfg == 2) ? "CD" : minimig_config.hardfile[1].cfg ? "HDD" : "disabled");
+		printf("Secondary Master HDD is %s.\n", (minimig_config.hardfile[2].cfg == 2) ? "CD" : minimig_config.hardfile[2].cfg ? "HDD" : "disabled");
+		printf("Secondary Slave HDD is %s.\n", (minimig_config.hardfile[3].cfg == 2) ? "CD" : minimig_config.hardfile[3].cfg ? "HDD" : "disabled");
 	}
+
+	uint8_t hotswap[4] = {
+		minimig_config.hardfile[0].cfg == 2,
+		minimig_config.hardfile[1].cfg == 2,
+		minimig_config.hardfile[2].cfg == 2,
+		minimig_config.hardfile[3].cfg == 2
+	};
+	ide_reset(hotswap);
 
 	rstval = SPI_CPU_HLT;
 	spi_uio_cmd8(UIO_MM2_RST, rstval);
-	spi_uio_cmd8(UIO_MM2_HDD, (minimig_config.enable_ide ? 1 : 0) | (OpenHardfile(0) ? 2 : 0) | (OpenHardfile(1) ? 4 : 0) | (OpenHardfile(2) ? 8 : 0) | (OpenHardfile(3) ? 16 : 0));
+	spi_uio_cmd8(UIO_MM2_HDD, (minimig_config.ide_cfg & 0x21) |
+		(hdd_open(0) ? 2 : 0) |
+		(hdd_open(1) ? 4 : 0) |
+		(hdd_open(2) ? 8 : 0) |
+		(hdd_open(3) ? 16 : 0));
 
 	minimig_ConfigMemory(memcfg);
 	minimig_ConfigCPU(minimig_config.cpu);
@@ -348,7 +378,7 @@ static void ApplyConfiguration(char reloadkickstart)
 		spi_uio_cmd8(UIO_MM2_RST, rstval);
 		if (!UploadKickstart(minimig_config.kickstart))
 		{
-			snprintf(minimig_config.kickstart, 1024, "%s/%s", HomeDir, "KICK.ROM");
+			snprintf(minimig_config.kickstart, sizeof(minimig_config.kickstart) - 1, "%s/%s", HomeDir(), "KICK.ROM");
 			if (!UploadKickstart(minimig_config.kickstart))
 			{
 				strcpy(minimig_config.kickstart, "KICK.ROM");
@@ -376,12 +406,12 @@ static void ApplyConfiguration(char reloadkickstart)
 	minimig_ConfigVideo(minimig_config.scanlines);
 	minimig_ConfigAudio(minimig_config.audio);
 	minimig_ConfigAutofire(minimig_config.autofire, 0xC);
+	minimig_set_extcfg(minimig_get_extcfg() & ~1);
 }
 
 int minimig_cfg_load(int num)
 {
 	static const char config_id[] = "MNMGCFG0";
-	char updatekickstart = 0;
 	int result = 0;
 
 	const char *filename = GetConfigurationName(num, 1);
@@ -401,11 +431,6 @@ int minimig_cfg_load(int num)
 				if (strncmp(tmpconf.id, config_id, sizeof(minimig_config.id)) == 0) {
 					// A few more sanity checks...
 					if (tmpconf.floppy.drives <= 4) {
-						// If either the old config and new config have a different kickstart file,
-						// or this is the first boot, we need to upload a kickstart image.
-						if (strcmp(tmpconf.kickstart, minimig_config.kickstart) != 0) {
-							updatekickstart = true;
-						}
 						memcpy((void*)&minimig_config, (void*)&tmpconf, sizeof(minimig_config));
 						result = 1; // We successfully loaded the config.
 					}
@@ -425,12 +450,8 @@ int minimig_cfg_load(int num)
 				if (strncmp(tmpconf.id, config_id, sizeof(minimig_config.id)) == 0) {
 					// A few more sanity checks...
 					if (tmpconf.floppy.drives <= 4) {
-						// If either the old config and new config have a different kickstart file,
-						// or this is the first boot, we need to upload a kickstart image.
-						if (strcmp(tmpconf.kickstart, minimig_config.kickstart) != 0) {
-							updatekickstart = true;
-						}
-						memcpy((void*)&minimig_config, (void*)&tmpconf, sizeof(minimig_config));
+						memset((void*)&minimig_config, 0, sizeof(minimig_config));
+						memcpy((void*)&minimig_config, (void*)&tmpconf, sizeof(tmpconf));
 						minimig_config.cpu = tmpconf.cpu;
 						minimig_config.autofire = tmpconf.autofire;
 						memset(&minimig_config.hardfile[2], 0, sizeof(minimig_config.hardfile[2]));
@@ -450,19 +471,22 @@ int minimig_cfg_load(int num)
 		BootPrint("Setting config defaults\n");
 		// set default configuration
 		memset((void*)&minimig_config, 0, sizeof(minimig_config));  // Finally found default config bug - params were reversed!
-		strncpy(minimig_config.id, config_id, sizeof(minimig_config.id));
-		snprintf(minimig_config.kickstart, 1024, "%s/%s", HomeDir, "KICK.ROM");
+		memcpy(minimig_config.id, config_id, sizeof(minimig_config.id));
+		snprintf(minimig_config.kickstart, sizeof(minimig_config.kickstart) - 1, "%s/%s", HomeDir(), "KICK.ROM");
 		minimig_config.memory = 0x11;
 		minimig_config.cpu = 0;
 		minimig_config.chipset = 0;
 		minimig_config.floppy.speed = CONFIG_FLOPPY2X;
 		minimig_config.floppy.drives = 1;
-		minimig_config.enable_ide = 0;
-		minimig_config.hardfile[0].enabled = 1;
+		minimig_config.ide_cfg = 0;
+		minimig_config.hardfile[0].cfg = 1;
 		minimig_config.hardfile[0].filename[0] = 0;
-		minimig_config.hardfile[1].enabled = 1;
+		minimig_config.hardfile[1].cfg = 1;
 		minimig_config.hardfile[1].filename[0] = 0;
-		updatekickstart = true;
+		minimig_config.hardfile[2].cfg = 0;
+		minimig_config.hardfile[2].filename[0] = 0;
+		minimig_config.hardfile[3].cfg = 0;
+		minimig_config.hardfile[3].filename[0] = 0;
 		BootPrintEx(">>> No config found. Using defaults. <<<");
 	}
 
@@ -494,7 +518,7 @@ int minimig_cfg_load(int num)
 		minimig_config.chipset &= ~CONFIG_NTSC;
 	}
 
-	ApplyConfiguration(updatekickstart);
+	ApplyConfiguration(1);
 	return(result);
 }
 
@@ -502,6 +526,7 @@ void minimig_reset()
 {
 	ApplyConfiguration(0);
 	user_io_rtc_reset();
+	minimig_share_reset();
 }
 
 void minimig_set_kickstart(char *name)
@@ -525,7 +550,31 @@ typedef struct
 
 vmode_adjust_t vmodes_adj[64] = {};
 
-static void adjust_vsize(char force)
+static const char* get_shared_vadjust_path()
+{
+	static char path[1024] = {};
+	if (!strlen(path))
+	{
+		if (strlen(cfg.shared_folder))
+		{
+			if (cfg.shared_folder[0] == '/')
+			{
+				snprintf(path, sizeof(path), "%s/minimig_vadjust.dat", cfg.shared_folder);
+			}
+			else
+			{
+				snprintf(path, sizeof(path), "%s/%s/minimig_vadjust.dat", HomeDir(), cfg.shared_folder);
+			}
+		}
+		else
+		{
+			snprintf(path, sizeof(path), "%s/shared/minimig_vadjust.dat", HomeDir());
+		}
+	}
+	return path;
+}
+
+void minimig_adjust_vsize(char force)
 {
 	static uint16_t nres = 0;
 	spi_uio_cmd_cont(UIO_GET_VMODE);
@@ -540,7 +589,11 @@ static void adjust_vsize(char force)
 		printf("\033[1;37mVMODE: resolution: %u x %u, mode: %u\033[0m\n", scr_hsize, scr_vsize, res & 255);
 
 		static int loaded = 0;
-		if (~loaded)
+		if (!loaded && FileExists(get_shared_vadjust_path(), 0))
+		{
+			FileLoad(get_shared_vadjust_path(), vmodes_adj, sizeof(vmodes_adj));
+		}
+		else if (!loaded)
 		{
 			FileLoadConfig("minimig_vadjust.dat", vmodes_adj, sizeof(vmodes_adj));
 			loaded = 1;
@@ -629,7 +682,7 @@ void minimig_set_adjust(char n)
 {
 	if (minimig_adjust && !n) store_vsize();
 	minimig_adjust = (n == 1) ? 1 : 0;
-	if (n == 2) adjust_vsize(1);
+	if (n == 2) minimig_adjust_vsize(1);
 }
 
 char minimig_get_adjust()
@@ -672,4 +725,20 @@ void minimig_ConfigAutofire(unsigned char autofire, unsigned char mask)
 	uint16_t param = mask;
 	param = (param << 8) | autofire;
 	spi_uio_cmd16(UIO_MM2_JOY, param);
+}
+
+void minimig_set_extcfg(unsigned int ext_cfg)
+{
+	minimig_config.ext_cfg = (unsigned short)ext_cfg;
+	minimig_config.ext_cfg2 = (unsigned short)(ext_cfg >> 16);
+
+	spi_uio_cmd_cont(UIO_SET_STATUS2);
+	spi32_w(0);
+	spi32_w(ext_cfg);
+	DisableIO();
+}
+
+unsigned int minimig_get_extcfg()
+{
+	return (minimig_config.ext_cfg2 << 16) | minimig_config.ext_cfg;
 }

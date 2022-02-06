@@ -46,7 +46,6 @@ int main(int argc, char *argv[])
 	sched_setaffinity(0, sizeof(set), &set);
 
 	fpga_io_init();
-	fpga_gpo_write(0);
 
 	DISKLED_OFF;
 
@@ -77,13 +76,7 @@ int main(int argc, char *argv[])
 	{
 		if (!is_fpga_ready(1))
 		{
-			printf("FPGA is not ready. JTAG uploading?\n");
-			printf("Waiting for FPGA to be ready...\n");
-			//enable reset in advance
-			fpga_core_reset(1);
-
-			while (!is_fpga_ready(0)) sleep(1);
-			reboot(0);
+			fpga_wait_to_reset();
 		}
 
 		user_io_poll();

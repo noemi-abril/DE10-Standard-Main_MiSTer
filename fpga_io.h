@@ -9,9 +9,16 @@
 
 int fpga_io_init();
 
-void fpga_gpo_write(uint32_t value);
-uint32_t fpga_gpo_read();
-int fpga_gpi_read();
+void fpga_spi_en(uint32_t mask, uint32_t en);
+uint16_t fpga_spi(uint16_t word);
+uint16_t fpga_spi_fast(uint16_t word);
+
+void fpga_spi_fast_block_write(const uint16_t *buf, uint32_t length);
+void fpga_spi_fast_block_read(uint16_t *buf, uint32_t length);
+void fpga_spi_fast_block_write_8(const uint8_t *buf, uint32_t length);
+void fpga_spi_fast_block_read_8(uint8_t *buf, uint32_t length);
+void fpga_spi_fast_block_write_be(const uint16_t *buf, uint32_t length);
+void fpga_spi_fast_block_read_be(uint16_t *buf, uint32_t length);
 
 void fpga_set_led(uint32_t on);
 int  fpga_get_buttons();
@@ -26,10 +33,12 @@ int is_fpga_ready(int quick);
 int fpga_get_fio_size();
 int fpga_get_io_version();
 
-int fpga_load_rbf(const char *name, const char *cfg = NULL, const char *xml=NULL);
+int fpga_load_rbf(const char *name, const char *cfg = 0, const char *xml = 0);
 
 void reboot(int cold);
-void app_restart(const char *path, const char *xml=NULL);
+void app_restart(const char *path, const char *xml = 0);
 char *getappname();
+
+void fpga_wait_to_reset();
 
 #endif

@@ -14,10 +14,10 @@ with help from the MiSTer contributors including Grabulosaure
 #include <fcntl.h>
 
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <err.h>
 
 #include "scaler.h"
+#include "shmem.h"
 
 
 mister_scaler * mister_scaler_init()
@@ -32,11 +32,9 @@ mister_scaler * mister_scaler_init()
     //printf("map_start = %d map_off=%d offset=%d\n",map_start,ms->map_off,offset);
 
     unsigned char *buffer;
-    ms->fd=open("/dev/mem", O_RDONLY, S_IRUSR | S_IWUSR);
-    ms->map=(char *)mmap(NULL, ms->num_bytes+ms->map_off,PROT_READ, MAP_SHARED, ms->fd, map_start);
-    if (ms->map==MAP_FAILED)
+    ms->map=(char *)shmem_map(map_start, ms->num_bytes+ms->map_off);
+    if (!ms->map)
     {
-        printf("problem MAP_FAILED\n");
         mister_scaler_free(ms);
         return NULL;
     }
@@ -54,8 +52,10 @@ mister_scaler * mister_scaler_init()
     ms->width =buffer[6]<<8 | buffer[7];
     ms->height=buffer[8]<<8 | buffer[9];
     ms->line  =buffer[10]<<8 | buffer[11];
+    ms->output_width =buffer[12]<<8 | buffer[13];
+    ms->output_height=buffer[14]<<8 | buffer[15];
 
-    printf ("Image: Width=%i Height=%i  Line=%i  Header=%i\n",ms->width,ms->height,ms->line,ms->header);
+    printf ("Image: Width=%i Height=%i  Line=%i  Header=%i output_width=%i output_height=%i \n",ms->width,ms->height,ms->line,ms->header,ms->output_width,ms->output_height);
    /*
     printf (" 1: %02X %02X %02X %02X   %02X %02X %02X %02X   %02X %02X %02X %02X   %02X %02X %02X %02X\n",
             buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6],buffer[7],
@@ -68,8 +68,7 @@ mister_scaler * mister_scaler_init()
 
 void mister_scaler_free(mister_scaler *ms)
 {
-   munmap(ms->map,ms->num_bytes+ms->map_off);
-   close(ms->fd);
+   shmem_unmap(ms->map,ms->num_bytes+ms->map_off);
    free(ms);
 }
 
@@ -123,6 +122,28 @@ int mister_scaler_read(mister_scaler *ms,unsigned char *gbuf)
             *outbuf++ = *pixbuf++;
             *outbuf++ = *pixbuf++;
             *outbuf++ = *pixbuf++;
+          }
+    }
+
+    return 0;
+}
+
+int mister_scaler_read_32(mister_scaler *ms, unsigned char *gbuf) {
+    unsigned char *buffer;
+    buffer = (unsigned char *)(ms->map+ms->map_off);
+
+    // do this slow way for now..  - could use a memcpy?
+    unsigned char *pixbuf;
+    unsigned char *outbuf;
+    for (int  y=0; y< ms->height ; y++) {
+          pixbuf=&buffer[ms->header + y*ms->line];
+          outbuf=&gbuf[y*(ms->width*4)];
+          for (int x = 0; x < ms->width ; x++) {
+            outbuf[2] = *pixbuf++;
+            outbuf[1] = *pixbuf++;
+            outbuf[0] = *pixbuf++;
+            outbuf[3] = 0xFF;
+	    outbuf+=4;
           }
     }
 

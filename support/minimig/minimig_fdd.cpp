@@ -562,7 +562,8 @@ void WriteTrack(adfTYPE *drive)
 
 	unsigned long lba = drive->track * SECTOR_COUNT;
 
-	drive->track_prev = drive->track + 1; // just to force next read from the start of current track
+	//    drive->track_prev = drive->track + 1; // This causes a read that directly follows a write to the previous track to return bad data.
+	drive->track_prev = -1; // just to force next read from the start of current track
 
 	while (FindSync(drive))
 	{
@@ -594,7 +595,7 @@ void WriteTrack(adfTYPE *drive)
 		if (Error)
 		{
 			fdd_debugf("WriteTrack: error %u\n", Error);
-			ErrorMessage("  WriteTrack", Error);
+			Info("Write error");
 		}
 	}
 }
@@ -613,19 +614,15 @@ void HandleFDD(unsigned char c1, unsigned char c2)
 
 	if (c1 & CMD_RDTRK)
 	{
-		DISKLED_ON;
 		sel = (c1 >> 6) & 0x03;
 		df[sel].track = c2;
 		ReadTrack(&df[sel]);
-		DISKLED_OFF;
 	}
 	else if (c1 & CMD_WRTRK)
 	{
-		DISKLED_ON;
 		sel = (c1 >> 6) & 0x03;
 		df[sel].track = c2;
 		WriteTrack(&df[sel]);
-		DISKLED_OFF;
 	}
 }
 

@@ -66,17 +66,22 @@
 #define SYS_BTN_CNT_OK     21
 #define SYS_BTN_CNT_ESC    22
 
+#define SPIN_LEFT          30
+#define SPIN_RIGHT         31
+
 #define KEY_EMU (KEY_MAX+1)
 
 void set_kbdled(int mask, int state);
 int  get_kbdled(int mask);
 int  toggle_kbdled(int mask);
+void sysled_enable(int en);
 
 void input_notify_mode();
 int input_poll(int getchar);
 int is_key_pressed(int key);
 
 void start_map_setting(int cnt, int set = 0);
+int get_map_set();
 int get_map_button();
 int get_map_type();
 int get_map_clear();
@@ -85,15 +90,16 @@ void finish_map_setting(int dismiss);
 uint16_t get_map_vid();
 uint16_t get_map_pid();
 int has_default_map();
+void send_map_cmd(int key);
+void reset_players();
 
 uint32_t get_key_mod();
 uint32_t get_ps2_code(uint16_t key);
 uint32_t get_amiga_code(uint16_t key);
-uint32_t get_atari_code(uint16_t key);
 uint32_t get_archie_code(uint16_t key);
 
 int input_has_lightgun();
-void input_lightgun_cal(uint16_t *cal);
+void input_lightgun_save(int idx, uint16_t *cal);
 
 void input_switch(int grab);
 int input_state();
